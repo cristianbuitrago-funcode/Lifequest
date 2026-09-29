@@ -1,0 +1,344 @@
+<!DOCTYPE html>
+<html lang="es" data-text-size="md" data-piece-size="md" data-scheme="default">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Ajedrez Accesible -- Juega a tu manera</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="css/styles.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/chess.js/0.10.3/chess.min.js"></script>
+<script src="js/pawn-battle.js" defer></script>
+<script src="js/clock.js" defer></script>
+<script src="js/accessibility.js" defer></script>
+<script src="js/feedback.js" defer></script>
+<script src="js/app.js" defer></script>
+</head>
+<body>
+
+<a class="skip-link" href="#board">Saltar al tablero</a>
+
+<header class="app-header">
+  <h1>Ajedrez Accesible</h1>
+  <p class="tagline" data-easy="Juega al ajedrez con clics, teclado o voz. Elige tus ayudas.">Juega partidas completas con el ratón, el teclado o tu voz. Elige las ayudas que necesites: el tablero y la interfaz se adaptan al instante.</p>
+</header>
+
+<!-- ================= ACCESIBILIDAD ================= -->
+<section class="card a11y-card" id="a11y-panel" aria-labelledby="a11y-title">
+  <div class="a11y-head">
+    <h2 id="a11y-title" class="a11y-title"><span aria-hidden="true">♿</span> Accesibilidad</h2>
+    <p id="a11y-summary" class="a11y-summary" aria-live="polite">Modo normal (sin ayudas extra)</p>
+  </div>
+  <p class="a11y-hint" data-easy="Puedes elegir varios.">Puedes activar varios modos a la vez y ajustar cada ayuda por separado en «Personalizada».</p>
+
+  <div class="profile-grid" role="group" aria-label="Modos rápidos de accesibilidad">
+    <button type="button" class="profile-btn" data-profile="normal" aria-pressed="true">
+      <span class="p-icon" aria-hidden="true">🔄</span><span class="p-name">Normal</span><span class="p-desc">Sin ayudas extra</span>
+    </button>
+    <button type="button" class="profile-btn" data-profile="visual" aria-pressed="false">
+      <span class="p-icon" aria-hidden="true">👁️</span><span class="p-name">Visual</span><span class="p-desc">Contraste y tamaño</span>
+    </button>
+    <button type="button" class="profile-btn" data-profile="auditiva" aria-pressed="false">
+      <span class="p-icon" aria-hidden="true">👂</span><span class="p-name">Auditiva</span><span class="p-desc">Avisos visuales</span>
+    </button>
+    <button type="button" class="profile-btn" data-profile="motora" aria-pressed="false">
+      <span class="p-icon" aria-hidden="true">♿</span><span class="p-name">Motora</span><span class="p-desc">Botones grandes</span>
+    </button>
+    <button type="button" class="profile-btn" data-profile="cognitiva" aria-pressed="false">
+      <span class="p-icon" aria-hidden="true">🧠</span><span class="p-name">Cognitiva</span><span class="p-desc">Paso a paso</span>
+    </button>
+    <button type="button" class="profile-btn" data-profile="daltonismo" aria-pressed="false">
+      <span class="p-icon" aria-hidden="true">🎨</span><span class="p-name">Daltonismo</span><span class="p-desc">Patrones y símbolos</span>
+    </button>
+    <button type="button" class="profile-btn" data-profile="lectura" aria-pressed="false">
+      <span class="p-icon" aria-hidden="true">📖</span><span class="p-name">Lectura fácil</span><span class="p-desc">Frases cortas</span>
+    </button>
+    <button type="button" class="profile-btn" data-profile="custom" id="profile-custom" aria-expanded="false" aria-controls="a11y-custom">
+      <span class="p-icon" aria-hidden="true">⚙️</span><span class="p-name">Personalizada</span><span class="p-desc">Ajuste por ajuste</span>
+    </button>
+  </div>
+
+  <div id="a11y-custom" class="a11y-custom" hidden>
+    <fieldset class="a11y-group">
+      <legend><span aria-hidden="true">👁️</span> Visión</legend>
+      <button type="button" class="switch" role="switch" aria-checked="false" data-setting="highContrast"><span class="switch-track" aria-hidden="true"></span>Alto contraste</button>
+      <button type="button" class="switch" role="switch" aria-checked="false" data-setting="patterns"><span class="switch-track" aria-hidden="true"></span>Patrones y símbolos</button>
+      <button type="button" class="switch" role="switch" aria-checked="true" data-setting="showLegalMoves"><span class="switch-track" aria-hidden="true"></span>Mostrar movimientos posibles</button>
+      <button type="button" class="switch" role="switch" aria-checked="true" data-setting="showCoordinates"><span class="switch-track" aria-hidden="true"></span>Mostrar coordenadas</button>
+      <div class="setting-row">
+        <span class="setting-label" id="lbl-text">Texto</span>
+        <div class="segmented" role="group" aria-labelledby="lbl-text">
+          <button type="button" class="seg-btn" data-setting="textSize" data-value="md" aria-pressed="true">Normal</button>
+          <button type="button" class="seg-btn" data-setting="textSize" data-value="lg" aria-pressed="false">Grande</button>
+          <button type="button" class="seg-btn" data-setting="textSize" data-value="xl" aria-pressed="false">Muy grande</button>
+        </div>
+      </div>
+      <div class="setting-row">
+        <span class="setting-label" id="lbl-piece">Piezas y tablero</span>
+        <div class="segmented" role="group" aria-labelledby="lbl-piece">
+          <button type="button" class="seg-btn" data-setting="pieceSize" data-value="md" aria-pressed="true">Normal</button>
+          <button type="button" class="seg-btn" data-setting="pieceSize" data-value="lg" aria-pressed="false">Grande</button>
+          <button type="button" class="seg-btn" data-setting="pieceSize" data-value="xl" aria-pressed="false">Muy grande</button>
+        </div>
+      </div>
+      <div class="setting-row">
+        <label class="setting-label" for="scheme-select">Colores</label>
+        <select id="scheme-select" class="select" data-setting="colorScheme">
+          <option value="default">Estándar (madera)</option>
+          <option value="deuteranopia">Deuteranopía (rojo-verde)</option>
+          <option value="protanopia">Protanopía (rojo-verde)</option>
+          <option value="tritanopia">Tritanopía (azul-amarillo)</option>
+          <option value="mono">Monocromático (sin color)</option>
+        </select>
+      </div>
+    </fieldset>
+
+    <fieldset class="a11y-group">
+      <legend><span aria-hidden="true">👂</span> Audición y voz</legend>
+      <button type="button" class="switch" role="switch" aria-checked="true" data-setting="sound"><span class="switch-track" aria-hidden="true"></span>Efectos de sonido</button>
+      <button type="button" class="switch" role="switch" aria-checked="true" data-setting="narration"><span class="switch-track" aria-hidden="true"></span>Narración por voz</button>
+      <button type="button" class="switch" role="switch" aria-checked="false" data-setting="visualAlerts"><span class="switch-track" aria-hidden="true"></span>Avisos visuales grandes</button>
+      <div class="setting-row">
+        <span class="setting-label" id="lbl-rate">Velocidad de la voz</span>
+        <div class="segmented" role="group" aria-labelledby="lbl-rate">
+          <button type="button" class="seg-btn" data-setting="speechRate" data-value="0.8" aria-pressed="false">Lenta</button>
+          <button type="button" class="seg-btn" data-setting="speechRate" data-value="1" aria-pressed="true">Normal</button>
+          <button type="button" class="seg-btn" data-setting="speechRate" data-value="1.25" aria-pressed="false">Rápida</button>
+        </div>
+      </div>
+    </fieldset>
+
+    <fieldset class="a11y-group">
+      <legend><span aria-hidden="true">♿</span> Movimiento y control</legend>
+      <button type="button" class="switch" role="switch" aria-checked="false" data-setting="largeTargets"><span class="switch-track" aria-hidden="true"></span>Botones y casillas grandes</button>
+      <button type="button" class="switch" role="switch" aria-checked="false" data-setting="moveConfirmation"><span class="switch-track" aria-hidden="true"></span>Confirmar cada movimiento</button>
+      <button type="button" class="switch" role="switch" aria-checked="true" data-setting="keyboardShortcuts"><span class="switch-track" aria-hidden="true"></span>Atajos de teclado (M, R, T, P)</button>
+      <button type="button" class="switch" role="switch" aria-checked="false" data-setting="announceFocus"><span class="switch-track" aria-hidden="true"></span>Leer la casilla al navegar con flechas</button>
+    </fieldset>
+
+    <fieldset class="a11y-group">
+      <legend><span aria-hidden="true">🧠</span> Comprensión y lectura</legend>
+      <button type="button" class="switch" role="switch" aria-checked="false" data-setting="simplifiedUI"><span class="switch-track" aria-hidden="true"></span>Interfaz simplificada</button>
+      <button type="button" class="switch" role="switch" aria-checked="false" data-setting="stepGuide"><span class="switch-track" aria-hidden="true"></span>Guía paso a paso</button>
+      <button type="button" class="switch" role="switch" aria-checked="false" data-setting="easyRead"><span class="switch-track" aria-hidden="true"></span>Lectura fácil</button>
+      <button type="button" class="switch" role="switch" aria-checked="false" data-setting="reducedMotion"><span class="switch-track" aria-hidden="true"></span>Reducir animaciones</button>
+    </fieldset>
+
+    <button type="button" class="btn-secondary a11y-reset" id="a11y-reset">↺ Restablecer todas las ayudas</button>
+  </div>
+</section>
+
+<div class="layout">
+
+  <section class="card" id="board-wrap" aria-label="Tablero de juego">
+
+    <div class="mode-switch" role="group" aria-label="Modo de juego">
+      <button type="button" class="mode-btn" data-mode="classic" aria-pressed="true">♟&#xFE0E; Clásico</button>
+      <button type="button" class="mode-btn" data-mode="pawns" aria-pressed="false">⚔️ Batalla de peones</button>
+      <button type="button" class="mode-btn" data-mode="custom" aria-pressed="false">🎨 Personalizado</button>
+    </div>
+
+    <div id="turn-indicator" class="turn-indicator" data-state="w">
+      <span class="turn-icon" aria-hidden="true">⚪</span>
+      <span class="turn-text">Turno de las blancas</span>
+    </div>
+
+    <div id="guide" class="guide" hidden>
+      <span class="guide-step" aria-hidden="true">1</span>
+      <span class="guide-text"></span>
+    </div>
+
+    <div class="player-bar" data-color="b">
+      <span class="player-name"><span aria-hidden="true">⚫</span> Negras</span>
+      <span id="captured-b" class="captured"></span>
+      <div id="clock-b" class="clock" role="timer" hidden><span class="clock-time">0:00</span></div>
+    </div>
+
+    <div class="board-frame" id="board-frame">
+      <div id="event-banner" class="event-banner" aria-hidden="true" hidden>
+        <span class="banner-icon"></span><span class="banner-text"></span>
+      </div>
+      <div id="board" role="grid" aria-label="Tablero de ajedrez, 8 filas por 8 columnas. Usa las flechas para moverte y Enter para elegir."></div>
+      <div id="pause-overlay" class="pause-overlay" hidden><span>⏸ En pausa</span></div>
+    </div>
+
+    <div class="player-bar" data-color="w">
+      <span class="player-name"><span aria-hidden="true">⚪</span> Blancas</span>
+      <span id="captured-w" class="captured"></span>
+      <div id="clock-w" class="clock" role="timer" hidden><span class="clock-time">0:00</span></div>
+    </div>
+
+    <div class="clock-controls">
+      <button type="button" class="btn-secondary" id="time-open"><span aria-hidden="true">⏱</span> Tiempo: <span id="time-summary">Sin reloj</span></button>
+      <button type="button" class="btn-secondary" id="pause-btn" aria-pressed="false" hidden>⏸ Pausa</button>
+    </div>
+
+    <div id="confirm-bar" class="confirm-bar" role="group" aria-labelledby="confirm-text" hidden>
+      <p id="confirm-text"></p>
+      <div class="btn-row">
+        <button type="button" class="btn-primary" id="confirm-yes">✔ Confirmar</button>
+        <button type="button" class="btn-secondary" id="confirm-no">✖ Cancelar</button>
+      </div>
+    </div>
+
+    <div id="editor-panel" class="editor-panel" hidden>
+      <p class="side-title" style="margin:0;">Editor de posición</p>
+
+      <div class="editor-row">
+        <span class="editor-label" id="editor-color-label">Color a colocar:</span>
+        <div class="segmented" role="group" aria-labelledby="editor-color-label">
+          <button type="button" class="seg-btn" data-color="w" aria-pressed="true">Blancas</button>
+          <button type="button" class="seg-btn" data-color="b" aria-pressed="false">Negras</button>
+        </div>
+      </div>
+
+      <div class="editor-row">
+        <span class="editor-label" id="editor-piece-label">Pieza:</span>
+        <div class="piece-palette" role="group" aria-labelledby="editor-piece-label">
+          <button type="button" class="pal-btn" data-piece="p" aria-pressed="true">♟&#xFE0E; Peón</button>
+          <button type="button" class="pal-btn" data-piece="n" aria-pressed="false">♞&#xFE0E; Caballo</button>
+          <button type="button" class="pal-btn" data-piece="b" aria-pressed="false">♝&#xFE0E; Alfil</button>
+          <button type="button" class="pal-btn" data-piece="r" aria-pressed="false">♜&#xFE0E; Torre</button>
+          <button type="button" class="pal-btn" data-piece="q" aria-pressed="false">♛&#xFE0E; Dama</button>
+          <button type="button" class="pal-btn" data-piece="k" aria-pressed="false">♚&#xFE0E; Rey</button>
+          <button type="button" class="pal-btn" data-piece="erase" aria-pressed="false">🧹 Borrar</button>
+        </div>
+      </div>
+
+      <div class="editor-row">
+        <label class="editor-label" for="start-turn-select">Empiezan:</label>
+        <select id="start-turn-select" class="select">
+          <option value="w">Blancas</option>
+          <option value="b">Negras</option>
+        </select>
+      </div>
+
+      <div class="btn-row">
+        <button class="btn-secondary" id="editor-clear-btn" type="button">Vaciar tablero</button>
+        <button class="btn-primary" id="editor-start-btn" type="button">Iniciar partida</button>
+      </div>
+
+      <p class="help-box" style="margin-top:0;">
+        Toca una casilla del tablero (o navégala con las flechas y pulsa Enter) para colocar la pieza y el color elegidos.
+        También puedes decirlo por voz: "colocar torre blanca en a1", "borrar a1", "iniciar partida".
+        Debes incluir un rey blanco y un rey negro antes de empezar. Si el rey y la torre están en su casilla inicial, se podrá enrocar.
+      </p>
+    </div>
+
+    <button class="btn-secondary" id="edit-position-btn" type="button" hidden>✏️ Editar posición</button>
+
+    <button id="mic-btn" type="button" aria-pressed="false">
+      <span class="wave" aria-hidden="true"><span></span><span></span><span></span><span></span></span>
+      <span id="mic-label">Activar micrófono (opcional)</span>
+    </button>
+
+    <form id="text-form" class="advanced" role="search" aria-label="Escribir un comando con el teclado">
+      <label for="text-input" class="sr-only">Escribe un movimiento o comando, por ejemplo e2 e4</label>
+      <input id="text-input" type="text" placeholder="Escribe un movimiento o comando" autocomplete="off">
+      <button type="submit">Enviar</button>
+    </form>
+
+    <div class="btn-row">
+      <button class="btn-secondary" id="help-btn" type="button">❓ Ayuda</button>
+      <button class="btn-secondary" id="reset-btn" type="button">↺ Reiniciar partida</button>
+    </div>
+  </section>
+
+  <aside class="card side-panel" aria-label="Estado de la partida">
+    <p class="side-title">Estado de la partida</p>
+    <div id="status" role="status" aria-live="polite">Bienvenido. Modo clásico. Turno de las blancas.</div>
+    <div id="alert" role="alert" aria-live="assertive" class="sr-only"></div>
+
+    <div class="tabs" role="tablist" aria-label="Paneles de la partida">
+      <button type="button" role="tab" id="tab-game" data-tab="game" aria-controls="panel-game" aria-selected="true">📋 <span data-easy="Jugadas">Historial</span></button>
+      <button type="button" role="tab" id="tab-clock" data-tab="clock" aria-controls="panel-clock" aria-selected="false" tabindex="-1">⏱ Reloj</button>
+      <button type="button" role="tab" id="tab-help" data-tab="help" aria-controls="panel-help" aria-selected="false" tabindex="-1">❓ Ayuda</button>
+    </div>
+
+    <div id="panel-game" role="tabpanel" aria-labelledby="tab-game" class="tab-panel">
+      <ul id="move-log" aria-label="Historial de jugadas"></ul>
+    </div>
+
+    <div id="panel-clock" role="tabpanel" aria-labelledby="tab-clock" class="tab-panel" hidden>
+      <p class="side-title" id="time-title">Tiempo de partida (por jugador)</p>
+      <div class="time-grid" role="group" aria-labelledby="time-title">
+        <button type="button" class="time-btn" data-ms="0" aria-pressed="true">Sin reloj</button>
+        <button type="button" class="time-btn" data-ms="60000" aria-pressed="false">1 min</button>
+        <button type="button" class="time-btn" data-ms="120000" aria-pressed="false">2 min</button>
+        <button type="button" class="time-btn" data-ms="300000" aria-pressed="false">5 min</button>
+        <button type="button" class="time-btn" data-ms="600000" aria-pressed="false">10 min</button>
+        <button type="button" class="time-btn" data-ms="1800000" aria-pressed="false">30 min</button>
+        <button type="button" class="time-btn" data-ms="3600000" aria-pressed="false">1 hora</button>
+        <button type="button" class="time-btn" data-ms="custom" aria-pressed="false">Personalizado</button>
+      </div>
+
+      <div id="custom-time" class="custom-time" hidden>
+        <form id="custom-time-form">
+          <div class="time-fields">
+            <label>Horas <input id="custom-h" type="number" min="0" max="10" value="0" inputmode="numeric"></label>
+            <label>Minutos <input id="custom-m" type="number" min="0" max="59" value="15" inputmode="numeric"></label>
+            <label>Segundos <input id="custom-s" type="number" min="0" max="59" value="30" inputmode="numeric"></label>
+          </div>
+          <button type="submit" class="btn-primary">✔ Usar este tiempo</button>
+        </form>
+      </div>
+
+      <p id="time-note" class="time-note" aria-live="polite"></p>
+      <button type="button" class="btn-secondary wide" id="time-new-game">↺ Nueva partida con este tiempo</button>
+      <p class="help-box" data-easy="El reloj empieza tras la primera jugada. Si llega a 0, pierdes.">
+        El reloj de cada bando empieza a correr después de la primera jugada y solo corre el del bando que debe mover.
+        Si un reloj llega a 0, ese bando pierde (salvo que el rival no tenga material para dar mate: entonces son tablas).
+        Tecla P: pausa.
+      </p>
+    </div>
+
+    <div id="panel-help" role="tabpanel" aria-labelledby="tab-help" class="tab-panel" hidden>
+      <div class="help-box">
+        <strong>Cómo mover:</strong><br>
+        <span data-easy="1. Toca una pieza. 2. Toca una casilla con punto.">Toca una pieza propia y después la casilla de destino (no hace falta arrastrar). Las casillas posibles se marcan con un punto; las capturas, con un anillo.</span><br><br>
+        <strong>Modos de juego:</strong><br>
+        · Clásico: ajedrez completo con las reglas normales.<br>
+        · Batalla de peones: solo peones, sin reyes. Gana quien lleve un peón a la última fila o capture todos los peones rivales. Si nadie puede mover, tablas.<br>
+        · Personalizado: coloca tú mismo las piezas de ambos bandos antes de jugar.<br><br>
+        <div class="advanced">
+          <strong>Comandos de voz o de texto (opcionales):</strong><br>
+          · "e2 e4" o "peón a e4"<br>
+          · "caballo de g1 a f3"<br>
+          · "enroque corto" / "enroque largo"<br>
+          · "turno", "tiempo", "repite la última jugada"<br>
+          · "confirmar" / "cancelar", "pausa"<br>
+          · "modo clásico" / "batalla de peones" / "modo personalizado"<br>
+          · "ayuda"<br><br>
+        </div>
+        <strong>Teclado:</strong> flechas para recorrer el tablero, Enter o Espacio para seleccionar una casilla, Esc para cancelar.
+        Atajos: M micrófono, R repetir la última jugada, T turno, P pausa.
+      </div>
+    </div>
+  </aside>
+
+</div>
+
+<!-- Elección de pieza al coronar -->
+<dialog id="promo-dialog" class="dialog" aria-labelledby="promo-title">
+  <h2 id="promo-title" class="dialog-title">👑 Elige la pieza para coronar</h2>
+  <div class="promo-grid">
+    <button type="button" class="promo-btn" data-piece="q"><span class="promo-glyph"></span>Dama</button>
+    <button type="button" class="promo-btn" data-piece="r"><span class="promo-glyph"></span>Torre</button>
+    <button type="button" class="promo-btn" data-piece="b"><span class="promo-glyph"></span>Alfil</button>
+    <button type="button" class="promo-btn" data-piece="n"><span class="promo-glyph"></span>Caballo</button>
+  </div>
+  <button type="button" class="btn-secondary wide" id="promo-cancel">✖ Cancelar</button>
+</dialog>
+
+<!-- Final de partida (aviso visual además del sonido y la voz) -->
+<dialog id="result-dialog" class="dialog result-dialog" aria-labelledby="result-title" aria-describedby="result-text">
+  <h2 id="result-title" class="dialog-title">🏁 Fin de la partida</h2>
+  <p id="result-text"></p>
+  <div class="btn-row">
+    <button type="button" class="btn-primary" id="result-new">↺ Nueva partida</button>
+    <button type="button" class="btn-secondary" id="result-close">Ver el tablero</button>
+  </div>
+</dialog>
+
+</body>
+</html>
