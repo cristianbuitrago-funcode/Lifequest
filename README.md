@@ -2,7 +2,7 @@
 
 Ajedrez para el navegador pensado para que cualquier persona pueda jugar: con ratón o pantalla táctil, con teclado o con la voz (opcional).
 
-Abre `index.html` en el navegador. No hace falta instalar nada: la única dependencia, chess.js 0.10.3, se carga desde cdnjs.
+Abre `index.html` en el navegador. No hace falta instalar nada ni tener conexión: la única dependencia, chess.js 0.10.3, está incluida en `js/vendor/` (licencia BSD-2 en `js/vendor/chess.js-LICENSE.txt`). Las tipografías de Google Fonts se cargan si hay internet; sin conexión se usan las fuentes del sistema.
 
 ## Estructura
 
@@ -10,6 +10,7 @@ Abre `index.html` en el navegador. No hace falta instalar nada: la única depend
 |---|---|
 | `index.html` | Estructura de la página: panel de accesibilidad, tablero, relojes, pestañas y diálogos |
 | `css/styles.css` | Estilos base, tablero y modos de accesibilidad (clases `a11y-*` en `<html>`) |
+| `js/vendor/chess.js` | Motor de reglas chess.js 0.10.3 (sin modificar) |
 | `js/pawn-battle.js` | Motor de la Batalla de peones (sin reyes). Tiene la misma interfaz que chess.js |
 | `js/clock.js` | `ChessClock`: dos relojes basados en marcas de tiempo |
 | `js/accessibility.js` | Modelo de preferencias (`A11y`), perfiles combinables, guardado en `localStorage` y `txt()` para lectura fácil |

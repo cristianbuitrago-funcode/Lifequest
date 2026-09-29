@@ -1,7 +1,7 @@
 /* =========================================================================
    AJEDREZ ACCESIBLE
    -------------------------------------------------------------------------
-   Motor de reglas: chess.js (valida jugadas, jaques, enroques, promoción...)
+   Motor de reglas: chess.js 0.10.3, incluido en js/vendor/ (funciona sin conexión)
                     y PawnBattle (js/pawn-battle.js) para la batalla de peones.
    Entrada de voz:  Web Speech API -> SpeechRecognition (STT), opcional.
    Salida:          speak() en js/feedback.js (texto + voz + sonido + avisos).
@@ -19,7 +19,7 @@
 
 if (typeof Chess === 'undefined'){
   document.getElementById('status').textContent =
-    'No se pudo cargar el motor de ajedrez (chess.js). Revisa tu conexión a internet y recarga la página.';
+    'No se pudo cargar el motor de ajedrez (js/vendor/chess.js). Comprueba que la carpeta js/vendor está junto a index.html y recarga la página.';
   throw new Error('chess.js no se ha cargado');
 }
 
