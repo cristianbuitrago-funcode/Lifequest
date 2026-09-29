@@ -44,6 +44,7 @@ const pieceWords = {
 };
 
 const TIME_STORAGE_KEY = 'ajedrez-accesible:tiempo:v1';
+const AI_STORAGE_KEY   = 'ajedrez-accesible:rival:v1';
 
 // ---- Estado general de interacción ----
 let selectedSquare = null;
@@ -65,6 +66,13 @@ let gameResult  = null;        // { winner:'w'|'b'|null, reason, loser? } cuando
 let pendingMove = null;        // jugada esperando confirmación
 let paused      = false;
 let timeControl = loadTimeControl();   // ms por jugador, 0 = sin reloj
+
+// ---- Rival: computadora ----
+let aiSettings = loadAiSettings();     // { enabled, humanColor:'w'|'b', level:'easy'|'medium'|'hard' }
+let aiThinking = false;
+let aiTimer    = null;
+let aiToken    = 0;                    // invalida cálculos pendientes al reiniciar, pausar, etc.
+let hintMove   = null;                 // { from, to } sugerido por el botón «Pista»
 
 const boardEl         = document.getElementById('board');
 const logEl           = document.getElementById('move-log');
@@ -134,6 +142,11 @@ function describeMove(m){
 }
 
 function turnText(){
+  if (isAiGame()){
+    return engine.turn() === aiSettings.humanColor
+      ? txt(`Es tu turno (${sideName(engine.turn())}).`, 'Te toca a ti.')
+      : txt('Turno de la computadora.', '🤖 Juega la computadora.');
+  }
   return txt(`Turno de las ${sideName(engine.turn())}.`, `Ahora juegan: ${SideName(engine.turn())}.`);
 }
 
@@ -249,9 +262,11 @@ function togglePause(){
     paused = false;
     if (engine.history().length > 0) clock.start(engine.turn());
     speak(txt('Partida reanudada. ', '▶ Seguimos. ') + turnText());
+    scheduleAiMove();
   } else {
     if (!clock.running) return;
     paused = true;
+    cancelAi();
     clock.stop();
     cancelSelection(false);
     speak(txt('Partida en pausa. Los relojes están detenidos.', '⏸ Pausa.'));
@@ -278,6 +293,8 @@ function setModeButtonsUI(){
 }
 
 function resetCommonState(){
+  cancelAi();
+  hintMove = null;
   lastMove = null;
   lastMoveText = '';
   selectedSquare = null;
@@ -305,6 +322,7 @@ function setMode(newMode){
     resetCommonState();
     render();
     speak(txt('Modo clásico activado. ', '♟️ Ajedrez clásico. ') + turnText() + clockHint());
+    scheduleAiMove();
 
   } else if (newMode === 'pawns'){
     editingCustom = false;
@@ -316,6 +334,7 @@ function setMode(newMode){
     render();
     speak(txt('Batalla de peones: solo hay peones, sin reyes. Gana quien lleve un peón a la última fila o capture todos los peones rivales. ',
               '⚔️ Solo peones. Llega al final para ganar. ') + turnText() + clockHint());
+    scheduleAiMove();
 
   } else if (newMode === 'custom'){
     editingCustom = true;
@@ -349,6 +368,7 @@ function resetGame(){
     resetCommonState();
     render();
     speak(txt('Partida personalizada reiniciada. ', 'Partida otra vez. ') + turnText());
+    scheduleAiMove();
   }
 }
 
@@ -420,6 +440,7 @@ function startCustomGame(){
   const outcome = evaluateOutcome();
   if (outcome){ finishGame(outcome); return; }
   speak(txt('Partida personalizada iniciada. ', '▶ ¡A jugar! ') + (game.in_check() ? 'Jaque. ' : '') + turnText() + clockHint());
+  scheduleAiMove();
 }
 
 function populateEditorFromGame(){
@@ -496,6 +517,8 @@ editorStartBtn.addEventListener('click', startCustomGame);
 
 editBtn.addEventListener('click', () => {
   populateEditorFromGame();
+  cancelAi();
+  hintMove = null;
   editingCustom = true;
   clock.stop();
   paused = false;
@@ -513,10 +536,11 @@ modeButtons.forEach(btn => btn.addEventListener('click', () => setMode(btn.datas
 // =====================================================================
 // JUGADAS: selección, promoción, confirmación y ejecución
 // =====================================================================
-function blockedReason(){
+function blockedReason(byComputer = false){
   if (editingCustom) return 'Estás editando la posición. Pulsa «Iniciar partida» para jugar.';
   if (gameResult) return txt('La partida ha terminado. Pulsa «Reiniciar partida» para jugar otra.', '🏁 Terminó. Pulsa «Reiniciar».');
   if (paused) return txt('La partida está en pausa. Pulsa «Reanudar» para seguir.', '⏸ Pausa. Pulsa «Reanudar».');
+  if (!byComputer && isAiTurn()) return txt('Espera: ahora juega la computadora.', '🤖 Espera. Juega la computadora.');
   return null;
 }
 
@@ -564,8 +588,8 @@ function requestMove(from, to, promotion = null, source = 'board'){
   return executeMove(intended);
 }
 
-function executeMove(m){
-  const reason = blockedReason();
+function executeMove(m, byComputer = false){
+  const reason = blockedReason(byComputer);
   if (reason){ speak(reason, true, { type:'error' }); return false; }
   if (clock.enabled && clock.sync()) return false;     // el tiempo se agotó antes de mover
 
@@ -580,7 +604,8 @@ function executeMove(m){
   }
 
   lastMove = result;
-  const moveText = describeMove(result);
+  hintMove = null;
+  const moveText = (byComputer ? txt('La computadora juega: ', '🤖 ') : '') + describeMove(result);
   const outcome = evaluateOutcome();
   lastMoveText = moveText;
   addToLog(result.san, moveText);
@@ -595,9 +620,121 @@ function executeMove(m){
   if (clock.enabled) clock.start(engine.turn());
   render();
   const text = `${moveText} ${check ? txt('Jaque. ', '⚠ ¡Jaque! ') : ''}${turnText()}`;
-  speak(text, check, { type: check ? 'check' : (result.captured ? 'capture' : 'move') });
+  // La jugada de la computadora se pone en cola para no cortar el anuncio de la jugada anterior.
+  speak(text, check, { type: check ? 'check' : (result.captured ? 'capture' : 'move'), queue: byComputer });
+  scheduleAiMove();
   return true;
 }
+
+// =====================================================================
+// COMPUTADORA
+// =====================================================================
+function isAiGame(){ return aiSettings.enabled && !editingCustom; }
+function aiColor(){ return other(aiSettings.humanColor); }
+function isAiTurn(){ return isAiGame() && !gameResult && engine.turn() === aiColor(); }
+
+/** Copia de la posición actual para que la computadora calcule sin tocar la partida. */
+function positionCopy(){
+  return mode === 'pawns' ? pawnGame.clone() : new Chess(game.fen());
+}
+
+function cancelAi(){
+  clearTimeout(aiTimer);
+  aiTimer = null;
+  aiToken++;
+  aiThinking = false;
+}
+
+function scheduleAiMove(){
+  if (!isAiTurn() || paused) return;
+  cancelAi();
+  aiThinking = true;
+  const token = aiToken;
+  render();
+  // Una breve espera deja ver y oír la jugada anterior antes de responder.
+  aiTimer = setTimeout(() => {
+    if (token !== aiToken) return;
+    const choice = chooseComputerMove(positionCopy(), mode === 'pawns', aiSettings.level);
+    aiThinking = false;
+    if (token !== aiToken || paused || !isAiTurn() || !choice){ render(); return; }
+    executeMove(choice, true);
+  }, 500);
+}
+
+function showHint(){
+  const reason = blockedReason();
+  if (reason){ speak(reason, true, { type:'error' }); return; }
+  speak(txt('Buscando una buena jugada…', '💡 Pensando…'), false, { banner:false });
+  setTimeout(() => {
+    if (blockedReason()) return;
+    const choice = chooseComputerMove(positionCopy(), mode === 'pawns', 'hard');
+    if (!choice) return;
+    const mv = findLegalMove(choice.from, choice.to, choice.promotion);
+    hintMove = { from: choice.from, to: choice.to };
+    selectedSquare = null;
+    render();
+    speak(`${txt('Pista:', '💡 Pista:')} ${describeMove({ ...mv, promotion: choice.promotion })}`, false, { type:'move' });
+  }, 30);
+}
+
+function loadAiSettings(){
+  const defaults = { enabled:false, humanColor:'w', level:'medium' };
+  try{
+    const saved = JSON.parse(localStorage.getItem(AI_STORAGE_KEY) || '{}');
+    return {
+      enabled: saved.enabled === true,
+      humanColor: saved.humanColor === 'b' ? 'b' : 'w',
+      level: saved.level in AI_LEVELS ? saved.level : 'medium'
+    };
+  } catch(e){ return defaults; }
+}
+
+function saveAiSettings(){
+  try{ localStorage.setItem(AI_STORAGE_KEY, JSON.stringify(aiSettings)); } catch(e){}
+}
+
+const rivalButtons   = document.querySelectorAll('[data-rival]');
+const aiHumanButtons = document.querySelectorAll('[data-ai-human]');
+const aiLevelButtons = document.querySelectorAll('[data-ai-level]');
+
+function syncRivalUI(){
+  rivalButtons.forEach(b => b.setAttribute('aria-pressed', String((b.dataset.rival === 'ai') === aiSettings.enabled)));
+  aiHumanButtons.forEach(b => b.setAttribute('aria-pressed', String(b.dataset.aiHuman === aiSettings.humanColor)));
+  aiLevelButtons.forEach(b => b.setAttribute('aria-pressed', String(b.dataset.aiLevel === aiSettings.level)));
+  document.getElementById('ai-options').hidden = !aiSettings.enabled;
+}
+
+/** Los cambios de rival se aplican al momento, también a mitad de partida. */
+function updateAiSettings(changes, message){
+  Object.assign(aiSettings, changes);
+  saveAiSettings();
+  syncRivalUI();
+  cancelAi();
+  hintMove = null;
+  selectedSquare = null;
+  pendingMove = null;
+  confirmBar.hidden = true;
+  render();
+  let extra = '';
+  if (editingCustom) extra = txt(' Se aplicará al iniciar la partida.', '');
+  else if (!gameResult) extra = ` ${turnText()}`;
+  speak(message + extra);
+  scheduleAiMove();
+}
+
+rivalButtons.forEach(b => b.addEventListener('click', () => {
+  const enabled = b.dataset.rival === 'ai';
+  updateAiSettings({ enabled }, enabled
+    ? txt(`Juegas contra la computadora, nivel ${AI_LEVELS[aiSettings.level].name.toLowerCase()}, con las ${sideName(aiSettings.humanColor)}.`,
+          `🤖 Juegas contra la computadora. Tú: ${sideName(aiSettings.humanColor)}.`)
+    : txt('Modo dos jugadores: dos personas en el mismo dispositivo.', '👥 Dos jugadores.'));
+}));
+aiHumanButtons.forEach(b => b.addEventListener('click', () => {
+  updateAiSettings({ humanColor: b.dataset.aiHuman }, txt(`Juegas con las ${sideName(b.dataset.aiHuman)}.`, `Tú: ${sideName(b.dataset.aiHuman)}.`));
+}));
+aiLevelButtons.forEach(b => b.addEventListener('click', () => {
+  updateAiSettings({ level: b.dataset.aiLevel }, `Nivel de la computadora: ${AI_LEVELS[b.dataset.aiLevel].name.toLowerCase()}.`);
+}));
 
 function evaluateOutcome(){
   if (mode === 'pawns'){
@@ -612,6 +749,8 @@ function evaluateOutcome(){
 }
 
 function finishGame(outcome, prefix = ''){
+  cancelAi();
+  hintMove = null;
   gameResult = outcome;
   clock.stop();
   paused = false;
@@ -627,9 +766,11 @@ function finishGame(outcome, prefix = ''){
 }
 
 function showResultDialog(outcome, text){
-  document.getElementById('result-title').textContent = outcome.winner
-    ? txt(`🏆 Ganan las ${sideName(outcome.winner)}`, `🏆 ¡Ganan ${sideName(outcome.winner)}!`)
-    : txt('🤝 Tablas', '🤝 Empate');
+  let title;
+  if (!outcome.winner) title = txt('🤝 Tablas', '🤝 Empate');
+  else if (isAiGame()) title = outcome.winner === aiSettings.humanColor ? '🏆 ¡Has ganado!' : '🤖 Gana la computadora';
+  else title = txt(`🏆 Ganan las ${sideName(outcome.winner)}`, `🏆 ¡Ganan ${sideName(outcome.winner)}!`);
+  document.getElementById('result-title').textContent = title;
   document.getElementById('result-text').textContent = text;
   if (typeof resultDialog.showModal === 'function' && !resultDialog.open){
     resultDialog.showModal();
@@ -775,6 +916,10 @@ function processVoiceCommand(rawText){
   if (/modo clasico|ajedrez clasico|juego clasico/.test(norm)) { setMode('classic'); return; }
   if (/batalla de peones/.test(norm)) { setMode('pawns'); return; }
   if (/modo personalizado|personalizar piezas/.test(norm)) { setMode('custom'); return; }
+  if (/contra la (computadora|maquina|ordenador)/.test(norm)) { rivalButtons[1].click(); return; }
+  if (/dos jugadores/.test(norm)) { rivalButtons[0].click(); return; }
+  const levelMatch = norm.match(/nivel (facil|medio|dificil)/);
+  if (levelMatch) { document.querySelector(`[data-ai-level="${{ facil:'easy', medio:'medium', dificil:'hard' }[levelMatch[1]]}"]`).click(); return; }
 
   if (editingCustom){
     if (processEditorVoiceCommand(norm)) return;
@@ -789,6 +934,7 @@ function processVoiceCommand(rawText){
   if (/repite|repetir|ultima jugada|ultimo movimiento/.test(norm)) { announceLastMove(); return; }
   if (/reiniciar|nueva partida/.test(norm)) { resetGame(); return; }
   if (/pausa|reanudar|continuar/.test(norm)) { togglePause(); return; }
+  if (/pista|sugerencia|que muevo/.test(norm)) { showHint(); return; }
   if (/enroque/.test(norm)) { tryCastle(/largo/.test(norm)); return; }
 
   tryMove(parseMoveCommand(rawText));
@@ -857,6 +1003,7 @@ function updateMicUI(on){
 
 micBtn.addEventListener('click', toggleListening);
 document.getElementById('help-btn').addEventListener('click', speakHelp);
+document.getElementById('hint-btn').addEventListener('click', showHint);
 document.getElementById('reset-btn').addEventListener('click', resetGame);
 pauseBtn.addEventListener('click', togglePause);
 
@@ -927,13 +1074,16 @@ boardEl.addEventListener('keydown', (e) => {
   const square = cell.dataset.square;
   let fileIdx = FILES.indexOf(square[0]);
   let rank = Number(square[1]);
+  const dir = boardEl.classList.contains('flipped') ? -1 : 1;   // con negras abajo, "arriba" es hacia la fila 1
+  const clampFile = f => Math.min(7, Math.max(0, f));
+  const clampRank = r => Math.min(8, Math.max(1, r));
   switch(e.key){
-    case 'ArrowUp':    rank = Math.min(8, rank + 1); break;
-    case 'ArrowDown':  rank = Math.max(1, rank - 1); break;
-    case 'ArrowLeft':  fileIdx = Math.max(0, fileIdx - 1); break;
-    case 'ArrowRight': fileIdx = Math.min(7, fileIdx + 1); break;
-    case 'Home':       fileIdx = 0; break;
-    case 'End':        fileIdx = 7; break;
+    case 'ArrowUp':    rank = clampRank(rank + dir); break;
+    case 'ArrowDown':  rank = clampRank(rank - dir); break;
+    case 'ArrowLeft':  fileIdx = clampFile(fileIdx - dir); break;
+    case 'ArrowRight': fileIdx = clampFile(fileIdx + dir); break;
+    case 'Home':       fileIdx = dir === 1 ? 0 : 7; break;
+    case 'End':        fileIdx = dir === 1 ? 7 : 0; break;
     case 'Enter':
     case ' ':
       e.preventDefault();
@@ -992,7 +1142,9 @@ function onGameCellActivate(square){
   }
 
   if (selectedSquare === null){
-    if (piece){
+    if (piece && isAiGame()){
+      speak(txt(`Esa pieza es de la computadora. Tú juegas con las ${sideName(aiSettings.humanColor)}.`, `Esa es de la computadora. Tú: ${sideName(aiSettings.humanColor)}.`), true, { type:'error' });
+    } else if (piece){
       speak(txt(`Esa pieza es de las ${sideName(piece.color)}. Ahora juegan las ${sideName(turn)}.`, `No es tu turno. Juegan ${sideName(turn)}.`), true, { type:'error' });
     } else {
       speak(txt(`Casilla ${square} vacía. Selecciona primero una pieza de las ${sideName(turn)}.`, `Casilla vacía. Toca una pieza de ${sideName(turn)}.`), true, { type:'error' });
@@ -1050,6 +1202,8 @@ function render(){
       if (!stateTag) stateTag = square === last.to ? '◆' : '◇';
     }
     if (pending && square === pending.to){ label += ', destino pendiente de confirmar'; stateTag = '?'; }
+    if (hintMove && square === hintMove.from){ label += ', pista: mover esta pieza'; stateTag = '💡'; }
+    if (hintMove && square === hintMove.to){ label += ', pista: casilla de destino'; stateTag = '💡'; }
     if (editing) label += ', modo edición';
 
     cell.setAttribute('aria-label', label);
@@ -1068,9 +1222,21 @@ function render(){
     cell.classList.toggle('last-from', !!last && square === last.from);
     cell.classList.toggle('last-to', !!last && square === last.to);
     cell.classList.toggle('pending-to', !!pending && square === pending.to);
+    cell.classList.toggle('hint-from', !!hintMove && square === hintMove.from);
+    cell.classList.toggle('hint-to', !!hintMove && square === hintMove.to);
   }
 
   boardEl.classList.toggle('editing', editing);
+  // Contra la computadora con negras: el tablero se gira para tener tus piezas abajo.
+  const flipped = isAiGame() && aiSettings.humanColor === 'b';
+  boardEl.classList.toggle('flipped', flipped);
+  const barB = document.querySelector('.player-bar[data-color="b"]');
+  const barW = document.querySelector('.player-bar[data-color="w"]');
+  boardFrameEl.before(flipped ? barW : barB);
+  boardFrameEl.after(flipped ? barB : barW);
+  document.querySelectorAll('.player-role').forEach(el => {
+    el.textContent = !isAiGame() ? '' : (el.dataset.roleFor === aiSettings.humanColor ? '· 🙂 Tú' : `· 🤖 Computadora (${AI_LEVELS[aiSettings.level].name.toLowerCase()})`);
+  });
   pauseOverlay.hidden = !paused;
   renderTurnIndicator(checkSq);
   renderCaptured();
@@ -1086,7 +1252,17 @@ function renderTurnIndicator(checkSq){
     text = gameResult.winner ? txt(`Partida terminada: ganan las ${sideName(gameResult.winner)}`, `Ganan ${sideName(gameResult.winner)}`) : txt('Partida terminada: tablas', 'Empate');
     state = 'over';
   } else if (paused){ icon = '⏸'; text = txt('Partida en pausa', 'Pausa'); state = 'paused'; }
-  else {
+  else if (isAiTurn()){
+    icon = '🤖';
+    text = aiThinking ? txt('La computadora está pensando…', 'La computadora piensa…') : txt('Turno de la computadora', 'Juega la computadora');
+    state = 'ai';
+    if (checkSq) text += txt(' · ¡Jaque!', ' · ⚠ ¡Jaque!');
+  } else if (isAiGame()){
+    icon = sideDot(engine.turn());
+    text = txt(`Tu turno (${sideName(engine.turn())})`, 'Te toca');
+    state = checkSq ? 'check' : engine.turn();
+    if (checkSq) text += txt(' · ¡Jaque!', ' · ⚠ ¡Jaque!');
+  } else {
     const t = engine.turn();
     icon = sideDot(t);
     text = txt(`Turno de las ${sideName(t)}`, `Juegan ${sideName(t)}`);
@@ -1128,6 +1304,7 @@ function renderGuide(){
   if (editingCustom){ step = '✏️'; text = txt('Elige pieza y color abajo. Toca casillas para colocarlas. Luego pulsa «Iniciar partida».', 'Elige pieza. Toca casillas. Pulsa «Iniciar».'); }
   else if (gameResult){ step = '🏁'; text = txt('La partida terminó. Pulsa «Reiniciar partida» para jugar otra vez.', 'Terminó. Pulsa «Reiniciar».'); }
   else if (paused){ step = '⏸'; text = txt('Pausa. Pulsa «Reanudar» cuando quieras seguir.', 'Pulsa «Reanudar».'); }
+  else if (isAiTurn()){ step = '🤖'; text = txt('Espera: ahora juega la computadora.', 'Espera. Juega la computadora.'); }
   else if (pendingMove){ step = '3'; text = txt('Paso 3: pulsa ✔ Confirmar para mover, o ✖ Cancelar.', 'Paso 3: pulsa ✔ o ✖.'); }
   else if (selectedSquare){ step = '2'; text = txt('Paso 2: toca una casilla con punto (●) para mover. Para cambiar de pieza, toca otra.', 'Paso 2: toca una casilla con punto ●.'); }
   else { step = '1'; text = txt(`Paso 1: toca una pieza de las ${sideName(engine.turn())}.`, `Paso 1: toca una pieza ${engine.turn() === 'w' ? 'blanca' : 'negra'}.`); }
@@ -1331,7 +1508,9 @@ buildBoard();
 A11y.init();
 clock.configure(timeControl);
 syncTimeButtons();
+syncRivalUI();
 render();
 statusEl.textContent = txt(
   'Bienvenido al ajedrez accesible. Modo clásico. Turno de las blancas. Toca una pieza para empezar, o di "ayuda" si usas la voz.',
   '👋 Hola. Juegan blancas. Toca una pieza para empezar.');
+scheduleAiMove();
