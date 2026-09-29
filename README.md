@@ -4,6 +4,12 @@ Ajedrez para el navegador pensado para que cualquier persona pueda jugar: con ra
 
 Abre `index.html` en el navegador. No hace falta instalar nada ni tener conexión: la única dependencia, chess.js 0.10.3, está incluida en `js/vendor/` (licencia BSD-2 en `js/vendor/chess.js-LICENSE.txt`). Las tipografías de Google Fonts se cargan si hay internet; sin conexión se usan las fuentes del sistema.
 
+## Sin conexión e instalación
+- Abierto como archivo (`index.html`), funciona sin internet porque chess.js está incluido.
+- Publicado (GitHub Pages), el service worker `sw.js` guarda el juego en la primera visita: después abre y funciona sin conexión.
+- `manifest.webmanifest` e `icons/` permiten instalarlo en el móvil o el ordenador como una app («Añadir a pantalla de inicio» / «Instalar»).
+- Si añades un archivo nuevo al juego, inclúyelo en `APP_FILES` de `sw.js` y sube `CACHE_VERSION`.
+
 ## Estructura
 
 | Archivo | Qué hace |
@@ -16,6 +22,7 @@ Abre `index.html` en el navegador. No hace falta instalar nada ni tener conexió
 | `js/accessibility.js` | Modelo de preferencias (`A11y`), perfiles combinables, guardado en `localStorage` y `txt()` para lectura fácil |
 | `js/ai.js` | Computadora: negamax con poda alfa-beta y límite de tiempo (niveles fácil, medio y difícil) |
 | `js/feedback.js` | `speak()`: texto de estado, voz, sonidos (Web Audio) y avisos visuales |
+| `sw.js`, `manifest.webmanifest`, `icons/` | Modo sin conexión e instalación como app |
 | `js/app.js` | Partida, modos, editor, voz, teclado y renderizado del tablero |
 
 ## Modos de juego

@@ -1514,3 +1514,8 @@ statusEl.textContent = txt(
   'Bienvenido al ajedrez accesible. Modo clásico. Turno de las blancas. Toca una pieza para empezar, o di "ayuda" si usas la voz.',
   '👋 Hola. Juegan blancas. Toca una pieza para empezar.');
 scheduleAiMove();
+
+// ---- Sin conexión: service worker (solo cuando la página se sirve por http/https) ----
+if ('serviceWorker' in navigator && location.protocol.startsWith('http')){
+  navigator.serviceWorker.register('./sw.js').catch(err => console.warn('No se pudo activar el modo sin conexión:', err));
+}
