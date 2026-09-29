@@ -27,10 +27,10 @@ function toSpeech(text){
     .trim();
 }
 
-function speakAloud(text){
+function speakAloud(text, queue = false){
   if (!synthAvailable || !A11y.get('narration')) return;
   try{
-    window.speechSynthesis.cancel();
+    if (!queue) window.speechSynthesis.cancel();
     const utter = new SpeechSynthesisUtterance(toSpeech(text));
     utter.lang = 'es-ES';
     utter.rate = A11y.get('speechRate');
@@ -43,7 +43,8 @@ function speakAloud(text){
 /**
  * @param {string} text
  * @param {boolean} urgent  también se anuncia en la región assertive (#alert)
- * @param {object} opts     { type, sound, status:false, banner:false }
+ * @param {object} opts     { type, sound, status:false, banner:false, queue:true }
+ *   queue: la voz espera a que termine el mensaje anterior en lugar de cortarlo.
  *   type: 'info' | 'move' | 'capture' | 'check' | 'win' | 'draw' | 'time' | 'error' | 'select'
  */
 function speak(text, urgent = false, opts = {}){
@@ -55,7 +56,7 @@ function speak(text, urgent = false, opts = {}){
     alertEl.textContent = '';
     requestAnimationFrame(() => { alertEl.textContent = text; });
   }
-  speakAloud(text);
+  speakAloud(text, !!opts.queue);
   const kind = opts.sound || (opts.type in SOUND_FOR_TYPE ? SOUND_FOR_TYPE[opts.type] : null);
   if (kind) playSound(kind);
   if (opts.type && opts.banner !== false && BANNER_TYPES.includes(opts.type)) showBanner(text, opts.type);

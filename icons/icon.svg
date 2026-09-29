@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <defs>
+    <clipPath id="tablero"><rect x="72" y="72" width="368" height="368" rx="36"/></clipPath>
+  </defs>
+  <rect width="512" height="512" rx="96" fill="#12151a"/>
+  <g clip-path="url(#tablero)">
+    <rect x="72" y="72" width="368" height="368" fill="#d9cdb8"/>
+    <rect x="72" y="72" width="184" height="184" fill="#4a3d31"/>
+    <rect x="256" y="256" width="184" height="184" fill="#4a3d31"/>
+  </g>
+  <!-- Peón -->
+  <g fill="#e8b84b" stroke="#12151a" stroke-width="12" stroke-linejoin="round">
+    <circle cx="256" cy="176" r="54"/>
+    <path d="M212 238 h88 l-10 42 c30 24 46 58 52 98 h-172 c6-40 22-74 52-98 z"/>
+    <rect x="150" y="372" width="212" height="46" rx="16"/>
+  </g>
+</svg>

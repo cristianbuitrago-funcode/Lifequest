@@ -4,14 +4,21 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Ajedrez Accesible -- Juega a tu manera</title>
+<meta name="description" content="Ajedrez inclusivo: juega con ratón, teclado o voz, con ayudas de accesibilidad, reloj y rival computadora.">
+<meta name="theme-color" content="#12151a">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icons/icon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="icons/icon-192.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="css/styles.css">
-<script src="https://cdnjs.cloudflare.com/ajax/libs/chess.js/0.10.3/chess.min.js"></script>
+<!-- chess.js 0.10.3 incluido en el proyecto (licencia BSD-2, ver js/vendor/chess.js-LICENSE.txt): funciona sin conexión -->
+<script src="js/vendor/chess.js"></script>
 <script src="js/pawn-battle.js" defer></script>
 <script src="js/clock.js" defer></script>
 <script src="js/accessibility.js" defer></script>
 <script src="js/feedback.js" defer></script>
+<script src="js/ai.js" defer></script>
 <script src="js/app.js" defer></script>
 </head>
 <body>
@@ -138,6 +145,33 @@
       <button type="button" class="mode-btn" data-mode="custom" aria-pressed="false">🎨 Personalizado</button>
     </div>
 
+    <div class="rival-panel">
+      <div class="editor-row">
+        <span class="editor-label" id="rival-label">Rival:</span>
+        <div class="segmented" role="group" aria-labelledby="rival-label">
+          <button type="button" class="seg-btn" data-rival="human" aria-pressed="true">👥 Dos jugadores</button>
+          <button type="button" class="seg-btn" data-rival="ai" aria-pressed="false">🤖 Computadora</button>
+        </div>
+      </div>
+      <div id="ai-options" class="ai-options" hidden>
+        <div class="editor-row">
+          <span class="editor-label" id="ai-color-label">Juegas con:</span>
+          <div class="segmented" role="group" aria-labelledby="ai-color-label">
+            <button type="button" class="seg-btn" data-ai-human="w" aria-pressed="true">⚪ Blancas</button>
+            <button type="button" class="seg-btn" data-ai-human="b" aria-pressed="false">⚫ Negras</button>
+          </div>
+        </div>
+        <div class="editor-row">
+          <span class="editor-label" id="ai-level-label">Nivel:</span>
+          <div class="segmented" role="group" aria-labelledby="ai-level-label">
+            <button type="button" class="seg-btn" data-ai-level="easy" aria-pressed="false">🙂 Fácil</button>
+            <button type="button" class="seg-btn" data-ai-level="medium" aria-pressed="true">🤔 Medio</button>
+            <button type="button" class="seg-btn" data-ai-level="hard" aria-pressed="false">🧠 Difícil</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
     <div id="turn-indicator" class="turn-indicator" data-state="w">
       <span class="turn-icon" aria-hidden="true">⚪</span>
       <span class="turn-text">Turno de las blancas</span>
@@ -149,7 +183,7 @@
     </div>
 
     <div class="player-bar" data-color="b">
-      <span class="player-name"><span aria-hidden="true">⚫</span> Negras</span>
+      <span class="player-name"><span aria-hidden="true">⚫</span> Negras <span class="player-role" data-role-for="b"></span></span>
       <span id="captured-b" class="captured"></span>
       <div id="clock-b" class="clock" role="timer" hidden><span class="clock-time">0:00</span></div>
     </div>
@@ -163,7 +197,7 @@
     </div>
 
     <div class="player-bar" data-color="w">
-      <span class="player-name"><span aria-hidden="true">⚪</span> Blancas</span>
+      <span class="player-name"><span aria-hidden="true">⚪</span> Blancas <span class="player-role" data-role-for="w"></span></span>
       <span id="captured-w" class="captured"></span>
       <div id="clock-w" class="clock" role="timer" hidden><span class="clock-time">0:00</span></div>
     </div>
@@ -239,6 +273,7 @@
     </form>
 
     <div class="btn-row">
+      <button class="btn-secondary" id="hint-btn" type="button">💡 Pista</button>
       <button class="btn-secondary" id="help-btn" type="button">❓ Ayuda</button>
       <button class="btn-secondary" id="reset-btn" type="button">↺ Reiniciar partida</button>
     </div>
@@ -300,13 +335,18 @@
         · Clásico: ajedrez completo con las reglas normales.<br>
         · Batalla de peones: solo peones, sin reyes. Gana quien lleve un peón a la última fila o capture todos los peones rivales. Si nadie puede mover, tablas.<br>
         · Personalizado: coloca tú mismo las piezas de ambos bandos antes de jugar.<br><br>
+        <strong>Rival:</strong><br>
+        · Dos jugadores: dos personas en el mismo dispositivo.<br>
+        · Computadora: elige tu color y el nivel (fácil, medio o difícil). Funciona en los tres modos y se puede activar a mitad de partida.<br>
+        · 💡 Pista: la computadora te sugiere una jugada.<br><br>
         <div class="advanced">
           <strong>Comandos de voz o de texto (opcionales):</strong><br>
           · "e2 e4" o "peón a e4"<br>
           · "caballo de g1 a f3"<br>
           · "enroque corto" / "enroque largo"<br>
           · "turno", "tiempo", "repite la última jugada"<br>
-          · "confirmar" / "cancelar", "pausa"<br>
+          · "confirmar" / "cancelar", "pausa", "pista"<br>
+          · "contra la computadora" / "dos jugadores" / "nivel fácil"<br>
           · "modo clásico" / "batalla de peones" / "modo personalizado"<br>
           · "ayuda"<br><br>
         </div>

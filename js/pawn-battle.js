@@ -30,6 +30,7 @@ class PawnBattle {
     this._turn = 'w';
     this.epSquare = null;      // casilla donde se puede capturar al paso
     this._history = [];
+    this._undo = [];
     this.result = null;        // { winner:'w'|'b'|null, reason }
   }
 
@@ -109,6 +110,9 @@ class PawnBattle {
       : legal.find(m => m.from === input.from && m.to === input.to);
     if (!found) return null;
 
+    // Datos para poder deshacer la jugada (lo usa la computadora al calcular).
+    this._undo.push({ epSquare: this.epSquare, result: this.result });
+
     delete this.board[found.from];
     if (found.flags === 'e'){
       delete this.board[`${found.to[0]}${found.from[1]}`];
@@ -129,6 +133,32 @@ class PawnBattle {
       this.result = { winner: null, reason:'blocked' };
     }
     return { ...found };
+  }
+
+  undo(){
+    const last = this._history.pop();
+    if (!last) return null;
+    const prev = this._undo.pop();
+    delete this.board[last.to];
+    this.board[last.from] = { type:'p', color: last.color };
+    const enemy = last.color === 'w' ? 'b' : 'w';
+    if (last.flags === 'e') this.board[`${last.to[0]}${last.from[1]}`] = { type:'p', color: enemy };
+    else if (last.captured) this.board[last.to] = { type:'p', color: enemy };
+    this.epSquare = prev.epSquare;
+    this.result = prev.result;
+    this._turn = last.color;
+    return { ...last };
+  }
+
+  /** Copia independiente (la computadora calcula sobre ella, no sobre la partida real). */
+  clone(){
+    const copy = new PawnBattle();
+    copy.board = {};
+    for (const sq in this.board) copy.board[sq] = { ...this.board[sq] };
+    copy._turn = this._turn;
+    copy.epSquare = this.epSquare;
+    copy.result = this.result ? { ...this.result } : null;
+    return copy;
   }
 
   // Interfaz compatible con chess.js: en este modo nunca hay jaque.
